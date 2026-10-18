@@ -1,0 +1,6 @@
+# Local build artifacts
+langtons_ant_server
+langtons_ant_server.exe
+*.o
+*.out
+.DS_Store

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: langtons-ant-cpp
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/state
+    autoDeploy: true
+    envVars:
+      - key: HOST
+        value: 0.0.0.0

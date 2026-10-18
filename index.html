@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2匹のラングトンのアリ — C++解析</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <div class="eyebrow">C++ simulation engine · HTML / CSS / JavaScript UI</div>
+    <h1>2匹のラングトンのアリ</h1>
+    <p class="sub">無限盤面シミュレーションと、ハイウェイ・ループの自動解析</p>
+  </header>
+  <main>
+    <section class="toolbar panel">
+      <div class="control-group main-controls">
+        <button id="runBtn" class="primary">▶ 実行</button>
+        <button id="step1Btn">1歩</button>
+        <button id="step100Btn">100歩</button>
+        <button id="step1000Btn">1,000歩</button>
+        <button id="resetBtn" class="danger-quiet">リセット</button>
+      </div>
+      <div class="control-group settings">
+        <label>実行速度 <strong id="speedLabel">2,000</strong> 歩/秒<input id="speed" type="range" min="100" max="10000" step="100" value="2000"></label>
+        <label>マスの大きさ<select id="cellSize"><option value="5">5 px</option><option value="10" selected>10 px</option><option value="20">20 px</option></select></label>
+        <label>蟻どうしの間隔<input id="spacing" type="number" min="1" max="1000000" value="10"></label>
+      </div>
+      <div class="control-group settings directions">
+        <label><span class="ant-label red-dot">蟻1（赤）</span><select id="dir1"><option value="0" selected>上</option><option value="1">右</option><option value="2">下</option><option value="3">左</option></select></label>
+        <label><span class="ant-label blue-dot">蟻2（青）</span><select id="dir2"><option value="0" selected>上</option><option value="1">右</option><option value="2">下</option><option value="3">左</option></select></label>
+      </div>
+      <p class="hint">スクロールで盤面を移動できます。マスの大きさは変わりません。中央ボタンドラッグでも移動できます。</p>
+      <p class="hint privacy-note">🔒 盤面・歩数・解析結果はこのブラウザーのセッション専用です。他の利用者とは共有されません。</p>
+    </section>
+
+    <section class="layout">
+      <div class="panel board-panel">
+        <div class="section-heading"><div><h2>盤面</h2><span class="muted">白＝白マス、黒＝黒マス、薄橙＝ハイウェイとして記録した経路</span></div><span id="runStatus" class="status-pill">停止中</span></div>
+        <div id="boardWrap" class="board-wrap"><canvas id="board" aria-label="ラングトンのアリの盤面"></canvas><div id="loading" class="loading">C++サーバーに接続中…</div></div>
+        <div class="legend"><span><i class="legend-ant red"></i>蟻1</span><span><i class="legend-ant blue"></i>蟻2</span><span><i class="legend-box black"></i>黒マス</span><span><i class="legend-box road"></i>ハイウェイ経路</span></div>
+      </div>
+      <aside class="side-column">
+        <section class="panel metrics-panel">
+          <h2>現在の状態</h2>
+          <div class="stat-grid">
+            <div class="stat"><span>総歩数</span><strong id="steps">0</strong></div>
+            <div class="stat"><span>一度でも通ったマス</span><strong id="visited">0</strong></div>
+            <div class="stat"><span>黒マス合計</span><strong id="black">0</strong></div>
+            <div class="stat"><span>ハイウェイ経路のマス</span><strong id="highwayCells">0</strong></div>
+            <div class="stat wide"><span>ハイウェイ経路以外の黒マス</span><strong id="nonHighwayBlack">0</strong></div>
+          </div>
+          <div class="ant-states">
+            <div class="ant-card"><h3><i class="legend-ant red"></i>蟻1</h3><p id="ant1Pos">位置 (0, 0)・向き 上</p><p id="ant1Highway" class="result-line">ハイウェイ未検出</p></div>
+            <div class="ant-card"><h3><i class="legend-ant blue"></i>蟻2</h3><p id="ant2Pos">位置 (10, 0)・向き 上</p><p id="ant2Highway" class="result-line">ハイウェイ未検出</p></div>
+          </div>
+        </section>
+        <section class="panel analysis-panel">
+          <h2>ハイウェイ検出</h2>
+          <p class="muted small">各蟻について104歩ごとの移動・折れ曲がりパターンを照合し、同じ周期が20周期分続くことを確認します。</p>
+          <p id="highwaySummary" class="analysis-result">検出待ち：周期を観測中</p>
+          <div class="divider"></div>
+          <h2>ループ検出</h2>
+          <p class="muted small">蟻1を原点にした蟻2の相対座標、両方の向き、相対盤面ハッシュを履歴と照合します。</p>
+          <p id="loopSummary" class="analysis-result">ループ未検出</p>
+        </section>
+      </aside>
+    </section>
+    <section class="panel notes">
+      <h2>解析上の定義</h2>
+      <p>ハイウェイ開始歩数は、104歩周期の反復が20周期続いたと確認した後、保存した履歴をさかのぼって反復が始まった推定歩数です。「ハイウェイ経路のマス」は、その開始推定歩数以降に当該の蟻が通ったマスの集合です。ハイウェイ経路以外の黒マス数は、現在の黒マスからその集合を除いて数えます。</p>
+      <p>ループ判定は盤面ハッシュを使うため、理論上はハッシュ衝突の可能性があります。実装では独立した2つの64-bitハッシュに、蟻2の相対座標と両方の向きを組み合わせます。間隔・向きを途中変更すると、盤面と総歩数は保ちつつ、検出履歴を新しい状態から取り直します。</p>
+    </section>
+    <footer>シミュレーションと解析はC++で実行します。盤面はブラウザーごとのセッションで分離され、12時間操作がないセッションは自動的に破棄されます。</footer>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
